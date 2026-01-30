@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2023 The Crossplane Authors <https://crossplane.io>
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Upjet-based Crossplane provider for AWS
+# Upjet-based Crossplane provider for Hetzner
 
 <div style="text-align: center;">
 
