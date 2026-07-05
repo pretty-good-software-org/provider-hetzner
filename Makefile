@@ -65,17 +65,17 @@ CROSSPLANE_VERSION = 2.1.3
 # ====================================================================================
 # Setup Images
 
-REGISTRY_ORGS ?= ghcr.io/prettygood-software
+REGISTRY_ORGS ?= ghcr.io/pretty-good-software-org
 IMAGES = $(PROJECT_NAME)
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
 # Setup XPKG
 
-XPKG_REG_ORGS ?= ghcr.io/prettygood-software
+XPKG_REG_ORGS ?= ghcr.io/pretty-good-software-org
 # NOTE(hasheddan): skip promoting on xpkg.crossplane.io as channel tags are
 # inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= ghcr.io/prettygood-software
+XPKG_REG_ORGS_NO_PROMOTE ?= ghcr.io/pretty-good-software-org
 XPKGS = $(PROJECT_NAME)
 -include build/makelib/xpkg.mk
 
