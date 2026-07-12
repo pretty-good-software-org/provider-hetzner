@@ -1,7 +1,7 @@
 name: Tag
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
     inputs:
       version:
         description: 'Release version (e.g. v0.1.0)'
@@ -9,6 +9,9 @@ on:
       message:
         description: 'Tag message'
         required: true
+
+permissions:
+  contents: write
 
 jobs:
   tag:
