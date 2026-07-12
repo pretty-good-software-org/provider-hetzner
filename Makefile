@@ -18,6 +18,7 @@ export TERRAFORM_PROVIDER_DOWNLOAD_URL_PREFIX ?= https://releases.hashicorp.com/
 export TERRAFORM_NATIVE_PROVIDER_BINARY ?= terraform-provider-hcloud_v1.59.0
 export TERRAFORM_DOCS_PATH ?= docs/resources
 
+CHANGIE_VERSION ?= 1.24.0
 
 PLATFORMS ?= linux_amd64 linux_arm64
 
@@ -100,6 +101,23 @@ xpkg.build.provider-hetzner: do.build.images
 # NOTE(hasheddan): we ensure up is installed prior to running platform-specific
 # build steps in parallel to avoid encountering an installation race condition.
 build.init: $(UP) $(CROSSPLANE_CLI) check-terraform-version
+
+# ====================================================================================
+# Setup Changie
+CHANGIE := $(TOOLS_HOST_DIR)/changie-$(CHANGIE_VERSION)
+
+$(CHANGIE):
+	@$(INFO) installing changie $(HOSTOS)-$(HOSTARCH)
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp-changie
+	@curl -fsSL https://github.com/miniscruff/changie/releases/download/v$(CHANGIE_VERSION)/changie_$(CHANGIE_VERSION)_$(SAFEHOST_PLATFORM).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp-changie
+	@mv $(TOOLS_HOST_DIR)/tmp-changie/changie $(CHANGIE)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp-changie
+	@$(OK) installing changie $(HOSTOS)-$(HOSTARCH)
+
+changie: $(CHANGIE)
+	@$(CHANGIE) new
+
+.PHONY: changie
 
 # ====================================================================================
 # Setup Terraform for fetching provider schema
@@ -241,6 +259,7 @@ schema-version-diff:
 
 define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
+    changie               Add a changelog entry for the next release.
     cobertura             Generate a coverage report for cobertura applying exclusions on generated files.
     submodules            Update the submodules, such as the common build scripts.
     run                   Run crossplane locally, out-of-cluster. Useful for development.
