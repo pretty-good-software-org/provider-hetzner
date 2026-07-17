@@ -15,15 +15,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 </div>
 
-Provider Hetzner is a [Crossplane](https://crossplane.io/) provider that is
-built using [Upjet](https://github.com/crossplane/upjet) code
-generation tools and exposes XRM-conformant managed resources for
+Provider Hetzner is a [Crossplane](https://crossplane.io/) provider that is built using
+[Upjet](https://github.com/crossplane/upjet) code generation tools and exposes XRM-conformant managed resources for
 [Hetzner Cloud](https://www.hetzner.com/cloud).
 
 ## Getting Started
 
-The provider needs a Kubernetes secret with an API Token 
-for Hetzner Cloud. To create the secret, run:
+The provider needs a Kubernetes secret with an API Token for Hetzner Cloud. To create the secret, run:
 
 ```bash
 kubectl create secret generic hetzner   \
@@ -31,8 +29,7 @@ kubectl create secret generic hetzner   \
 --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-To install the provider into a local Kubernetes cluster with 
-Crossplane already installed, apply:
+To install the provider into a local Kubernetes cluster with Crossplane already installed, apply:
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -60,15 +57,17 @@ spec:
     name: node1
     serverType: cx23
 ```
+
 To delete the test server, run:
+
 ```bash
 kubectl delete servers.server.hetzner.m node1
 ```
 
 ## Contributing
 
-For the general contribution guide,
-see [Upjet Contribution Guide](https://github.com/crossplane/upjet/blob/main/CONTRIBUTING.md)
+For the general contribution guide, see
+[Upjet Contribution Guide](https://github.com/crossplane/upjet/blob/main/CONTRIBUTING.md)
 
 If you'd like to learn how to use Upjet, see [Usage Guide](https://github.com/crossplane/upjet/tree/main/docs).
 
@@ -76,14 +75,13 @@ To build this provider locally and run it in a local Kubernetes cluster, run `ma
 
 ### Add a New Resource
 
-Follow the Upjet guide
-for [adding new resources](https://github.com/crossplane/upjet/blob/main/docs/adding-new-resource.md).
+Follow the Upjet guide for
+[adding new resources](https://github.com/crossplane/upjet/blob/main/docs/adding-new-resource.md).
 
 ## Getting help
 
-For filing bugs, suggesting improvements, or requesting new resources or features, please
-open an [issue](https://github.com/miaits/provider-hetzner/issues/new/choose).
-
+For filing bugs, suggesting improvements, or requesting new resources or features, please open an
+[issue](https://github.com/miaits/provider-hetzner/issues/new/choose).
 
 ## License
 

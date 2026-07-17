@@ -1,0 +1,12 @@
+# Base tool versions — shared across all environments
+# Domain-specific tools should be added by derived templates.
+[settings]
+experimental = true
+
+[tools]
+cocogitto = "6.5.0"
+actionlint = "1.7.11"
+yamllint = "1.38.0"
+markdownlint-cli2 = "0.22.0"
+uv = "0.11.26"
+"pipx:mdformat" = { version = "1.0.0", uvx_args = "--with-requirements mdformat-requirements.lock" }

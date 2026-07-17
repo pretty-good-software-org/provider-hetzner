@@ -1,0 +1,27 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  MISE_ENV: ci
+
+# One live run per ref — a new push supersedes the queued/running one
+# instead of piling up when runners are saturated or offline.
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: pretty-good-software-org/ci-shared/actions/setup/mise@v1
+      - run: mise run lint:default
