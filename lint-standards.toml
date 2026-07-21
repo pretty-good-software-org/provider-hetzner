@@ -36,8 +36,9 @@ file_length = 300
 
 [rust]
 # Cargo/clippy policy. clippy::pedantic must be denied. clippy::nursery is not
-# enabled by default for org templates. clippy.toml must keep too-many-lines-threshold at
-# or below this value.
+# enabled by default for org templates. Clippy counts physical source lines for
+# too-many-lines, so this Rust-specific threshold translates the 60-line org ceiling
+# across language tooling rather than granting an undocumented waiver.
 pedantic = "deny"
 too_many_lines = 80
 nursery = "forbidden"
