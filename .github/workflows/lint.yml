@@ -23,5 +23,5 @@ jobs:
     runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 5
     steps:
-      - uses: pretty-good-software-org/ci-shared/actions/setup/mise@v1
+      - uses: pretty-good-software-org/ci-shared/actions/setup/mise@3e43ae583558b430bce9ead386266daf6a99508c
       - run: mise run lint:default

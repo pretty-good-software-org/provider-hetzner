@@ -86,3 +86,9 @@ For filing bugs, suggesting improvements, or requesting new resources or feature
 ## License
 
 The provider is released under the [the Apache 2.0 license](LICENSE) with [notice](NOTICE).
+
+## Markdown formatter support
+
+The repository-local mdformat lifecycle is POSIX-only. It supports Linux ARM64, Linux x64 including glibc and musl, and
+macOS ARM64 and x64. Windows is not supported because the canonical Mise locks intentionally contain no Windows
+artifacts.
