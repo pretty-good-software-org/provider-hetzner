@@ -6,4 +6,4 @@
 
 ## Test plan
 
-- \[ \]
+- [ ] Test plan
