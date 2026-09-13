@@ -7,97 +7,128 @@ name: End to End Testing
 on:
   issue_comment:
     types: [created]
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
 
 env:
   GO_VERSION: "1.24"
 
 jobs:
   check-permissions:
+    if: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/test-examples') }}
     runs-on: ubuntu-latest
-    outputs:
-      permission: ${{ steps.check-permissions.outputs.permission }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     steps:
       - name: Get Commenter Permissions
         id: check-permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMENTER: ${{ github.event.comment.user.login }}
         run: |
+          set -euo pipefail
+
           echo "Trigger keyword: '/test-examples'"
-          echo "Go version: ${{ env.GO_VERSION }}"
+          echo "Go version: $GO_VERSION"
 
-          REPO=${{ github.repository }}
-          COMMENTER=${{ github.event.comment.user.login }}
+          granted=$(gh api "repos/$REPOSITORY/collaborators/$COMMENTER/permission" --jq '.permission')
+          echo "User $COMMENTER has $granted permissions"
+          echo "permission=$granted" >> "$GITHUB_OUTPUT"
 
-          # Fetch the commenter's repo-level permission grant
-          GRANTED=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$REPO/collaborators/$COMMENTER/permission" | jq -r .permission)
+      - name: Mark PR safe to test
+        if: steps.check-permissions.outputs.permission == 'admin' || steps.check-permissions.outputs.permission == 'write'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
 
-          # Make it accessible in the workflow via a job output -- cannot use env
-          echo "User $COMMENTER has $GRANTED permissions"
-          echo "permission=$GRANTED" >> "$GITHUB_OUTPUT"
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$REPOSITORY/issues/$PULL_REQUEST_NUMBER/labels" \
+            -f 'labels[]=safe-to-test'
 
   get-example-list:
-    needs: check-permissions
-    if: ${{ (needs.check-permissions.outputs.permission == 'admin' || needs.check-permissions.outputs.permission == 'write') && github.event.issue.pull_request != null && contains(github.event.comment.body, '/test-examples')}}
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'safe-to-test' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     outputs:
       example_list: ${{ steps.get-example-list-name.outputs.example-list }}
       example_hash: ${{ steps.get-example-list-name.outputs.example-hash }}
 
     steps:
-      - name: Checkout
+      - name: Checkout PR
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           submodules: true
-
-      - name: Checkout PR
-        id: checkout-pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr checkout ${{ github.event.issue.number }}
-          git submodule update --init --recursive
-          OUTPUT=$(git log -1 --format='%H')
-          echo "commit-sha=$OUTPUT" >> $GITHUB_OUTPUT
-
+          persist-credentials: false
 
       - name: Prepare The Example List
         env:
-          COMMENT: ${{ github.event.comment.body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         id: get-example-list-name
         run: |
-          PATHS=$(echo $COMMENT | sed 's/^.*\/test-examples="//g' | cut -d '"' -f 1 | sed 's/,/ /g')
-          EXAMPLE_LIST=""
-          for P in $PATHS; do EXAMPLE_LIST="${EXAMPLE_LIST},$(find $P -name '*.yaml' | tr '\n' ',')"; done
+          set -euo pipefail
 
-          sudo apt-get -y install coreutils
-          COUNT=$(echo ${EXAMPLE_LIST:1} | grep -o ".yaml" | wc -l)
-          if [ $COUNT -gt 1 ]; then EXAMPLE_HASH=$(echo ${EXAMPLE_LIST} | md5sum | cut -f1 -d" "); else EXAMPLE_HASH=$(echo ${EXAMPLE_LIST:1} | sed 's/.$//'); fi
+          comment=$(gh api \
+            "/repos/$REPOSITORY/issues/$PULL_REQUEST_NUMBER/comments?per_page=100" \
+            --jq '[.[] | select(.body | contains("/test-examples"))] | last | .body // ""')
+          if [[ -z "$comment" ]]; then
+            echo "No /test-examples comment found" >&2
+            exit 1
+          fi
 
-          echo "Examples: ${EXAMPLE_LIST:1}"
-          echo "Example Hash: ${EXAMPLE_HASH}"
+          paths=$(printf '%s\n' "$comment" | sed 's/^.*\/test-examples="//g' | cut -d '"' -f 1 | sed 's/,/\n/g')
+          example_list=""
+          while IFS= read -r path; do
+            [[ -n "$path" ]] || continue
+            example_list="${example_list},$(find "$path" -name '*.yaml' -print | tr '\n' ',')"
+          done <<< "$paths"
 
-          echo "example-list=${EXAMPLE_LIST:1}" >> $GITHUB_OUTPUT
-          echo "example-hash=${EXAMPLE_HASH}" >> $GITHUB_OUTPUT
+          examples=${example_list#,}
+          count=$(printf '%s' "$examples" | grep -o '\.yaml' | wc -l)
+          if [[ "$count" -gt 1 ]]; then
+            example_hash=$(printf '%s' "$examples" | md5sum | cut -f1 -d' ')
+          else
+            example_hash=${examples%,}
+          fi
 
+          echo "Examples: $examples"
+          echo "Example Hash: $example_hash"
+
+          echo "example-list=$examples" >> "$GITHUB_OUTPUT"
+          echo "example-hash=$example_hash" >> "$GITHUB_OUTPUT"
 
       - name: Create Pending Status Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/${{ steps.checkout-pr.outputs.commit-sha }} \
+            "/repos/$REPOSITORY/statuses/$COMMIT_SHA" \
             -f state='pending' \
             -f target_url='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             -f description='Running...' \
             -f context="Uptest-${{ steps.get-example-list-name.outputs.example-hash }}"
 
   uptest:
-    needs:
-      - check-permissions
-      - get-example-list
-    if: ${{ (needs.check-permissions.outputs.permission == 'admin' || needs.check-permissions.outputs.permission == 'write') && github.event.issue.pull_request != null && contains(github.event.comment.body, '/test-examples')}}
+    needs: get-example-list
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'safe-to-test' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
 
     steps:
@@ -112,26 +143,16 @@ jobs:
         with:
           platforms: all
 
-      - name: Checkout
+      - name: Checkout PR
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           submodules: true
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Checkout PR
-        id: checkout-pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr checkout ${{ github.event.issue.number }}
-          git submodule update --init --recursive
-          OUTPUT=$(git log -1 --format='%H')
-          echo "commit-sha=$OUTPUT" >> $GITHUB_OUTPUT
-
 
       - name: Vendor Dependencies
         run: make vendor vendor.check
@@ -148,27 +169,26 @@ jobs:
           mkdir -p .work && echo "${{ secrets.UPTEST_DATASOURCE }}" > .work/uptest-datasource.yaml
           make e2e
 
-
       - name: Create Successful Status Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           EXAMPLE_HASH: ${{ needs.get-example-list.outputs.example_hash }}
         run: |
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/${{ steps.checkout-pr.outputs.commit-sha }} \
+            "/repos/$REPOSITORY/statuses/$COMMIT_SHA" \
             -f state='success' \
             -f target_url='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             -f description='Passed' \
-            -f context="Uptest-${EXAMPLE_HASH}"
-
+            -f context="Uptest-$EXAMPLE_HASH"
 
       - name: Collect Cluster Dump
         if: always()
         run: |
           make controlplane.dump
-
 
       - name: Upload Cluster Dump
         if: always()
@@ -180,21 +200,22 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          eval $(make --no-print-directory build.vars)
+          eval "$(make --no-print-directory build.vars)"
           ${KUBECTL} delete managed --all || true
-
 
       - name: Create Unsuccessful Status Check
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           EXAMPLE_HASH: ${{ needs.get-example-list.outputs.example_hash }}
         run: |
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/${{ steps.checkout-pr.outputs.commit-sha }} \
+            "/repos/$REPOSITORY/statuses/$COMMIT_SHA" \
             -f state='failure' \
             -f target_url='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             -f description='Failed' \
-            -f context="Uptest-${EXAMPLE_HASH}"
+            -f context="Uptest-$EXAMPLE_HASH"
