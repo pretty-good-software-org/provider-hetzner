@@ -4,5 +4,8 @@ body: |-
   fragmentation, which govulncheck reported as reachable from the provider's controller manager, and GO-2026-6443, a
   server panic on a missing authority or Host header. golang.org/x/mod updates to v0.40.0, fixing GO-2026-6179 and
   GO-2026-6180, which allow a malicious GOPROXY to forge transparency-log tiles and bypass the GOSUMDB check.
-  govulncheck reports no vulnerabilities after both bumps.
+  The go directive and the CI toolchain pin move to 1.25.13, which fixes the same two advisories in the Go
+  toolchain itself: with GOTOOLCHAIN=auto a builder downloads the toolchain the directive names, so a 1.25.0
+  directive pinned every build to an unpatched toolchain regardless of the runner's Go version.
+  govulncheck reports no vulnerabilities after these bumps.
 time: 2026-09-16T16:00:00+02:00

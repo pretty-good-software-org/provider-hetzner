@@ -1,6 +1,6 @@
 module github.com/miaits/provider-hetzner
 
-go 1.25.0
+go 1.25.13
 
 tool golang.org/x/tools/cmd/goimports
 
