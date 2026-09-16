@@ -1,0 +1,6 @@
+kind: Fixed
+body: |-
+  google.golang.org/grpc moves to 1.83.2, clearing GO-2026-6348, heap exhaustion through HTTP/2 DATA frame
+  fragmentation, which govulncheck reported as reachable from the provider's controller manager, and GO-2026-6443, a
+  server panic on a missing authority or Host header. govulncheck reports no vulnerabilities after the bump.
+time: 2026-09-16T16:00:00+02:00
