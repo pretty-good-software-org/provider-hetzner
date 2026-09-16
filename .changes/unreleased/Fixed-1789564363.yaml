@@ -1,0 +1,5 @@
+kind: Fixed
+body: |-
+  Update google.golang.org/grpc to v1.83.2, fixing advisories GO-2026-6348
+  (heap exhaustion via HTTP/2 DATA frame fragmentation) and GO-2026-6443
+  (server panic on missing authority or Host header).
